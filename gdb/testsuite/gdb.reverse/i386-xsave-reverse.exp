@@ -1,0 +1,102 @@
+# Copyright 2018 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# This file is part of the gdb testsuite.
+
+#
+# This test tests some i386 general instructions for reverse execution.
+#
+
+if {![supports_reverse] || ![supports_process_record]} {
+    return
+}
+
+if ![istarget "*86*-*linux*"] then {
+    verbose "Skipping i386 reverse tests."
+    return
+}
+
+standard_testfile
+
+# some targets have leading underscores on assembly symbols.
+set additional_flags [gdb_target_symbol_prefix_flags]
+
+if {[prepare_for_testing "failed to prepare" $testfile $srcfile \
+         [list debug $additional_flags]]} {
+    return -1
+}
+
+set end_of_main          [gdb_get_line_number " end of main "]
+set end_xsave_test         [gdb_get_line_number " end xsave_test "]
+set end_xsave_no_sse_test         [gdb_get_line_number " end xsave_no_sse_test "]
+
+if ![runto main] then {
+    fail "run to main"
+    return
+}
+
+# Activate process record/replay
+gdb_test_no_output "record" "turn on process record"
+
+global hex
+global decimal
+
+#xsave_test
+
+gdb_test "break $end_xsave_test" \
+    "Breakpoint $decimal at .* line $end_xsave_test\." \
+    "set breakpoint at end of xsave_test"
+
+set test "continue to end of xsave_test"
+gdb_test_multiple "continue" $test {
+    -re " end xsave_test .*\r\n$gdb_prompt $" {
+        pass $test
+    }
+    -re " Illegal instruction.*\r\n$gdb_prompt $" {
+        untested i386-xsave-reverse
+        return -1
+    }
+}
+
+gdb_test "reverse-step" "xsave.*" "reverse-step to xsave"
+
+gdb_test "print buf" ".* = '\\\\000' <repeats .* times>" \
+    "verify xsave buffer after reverse xsave"
+
+#xsave_no_sse_test
+
+gdb_test "continue" \
+    " end xsave_test .*" \
+    "continue to end of xsave_test"
+
+gdb_test "break $end_xsave_no_sse_test" \
+    "Breakpoint $decimal at .* line $end_xsave_no_sse_test\." \
+    "set breakpoint at end of xsave_no_sse_test"
+
+set test "continue to end of xsave_no_sse_test"
+gdb_test_multiple "continue" $test {
+    -re " end xsave_no_sse_test .*\r\n$gdb_prompt $" {
+        pass $test
+    }
+    -re " Illegal instruction.*\r\n$gdb_prompt $" {
+        untested i386-xsave-no-sse-reverse
+        return -1
+    }
+}
+
+gdb_test "reverse-step" "xsave.*" "reverse-step to xsave"
+
+gdb_test "print buf" ".* = '\\\\000' <repeats .* times>" \
+    "verify xsave buffer after reverse xsave (no sse)"
