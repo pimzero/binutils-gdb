@@ -38,9 +38,10 @@ if {[prepare_for_testing "failed to prepare" $testfile $srcfile \
     return -1
 }
 
-set end_of_main          [gdb_get_line_number " end of main "]
-set end_xsave_test         [gdb_get_line_number " end xsave_test "]
-set end_xsave_no_sse_test         [gdb_get_line_number " end xsave_no_sse_test "]
+set end_of_main             [gdb_get_line_number " end of main "]
+set end_xsave_test          [gdb_get_line_number " end xsave_test "]
+set end_xsave_no_sse_test   [gdb_get_line_number " end xsave_no_sse_test "]
+set end_xsavec_test         [gdb_get_line_number " end xsavec_test "]
 
 if ![runto main] then {
     fail "run to main"
@@ -100,3 +101,29 @@ gdb_test "reverse-step" "xsave.*" "reverse-step to xsave"
 
 gdb_test "print buf" ".* = '\\\\000' <repeats .* times>" \
     "verify xsave buffer after reverse xsave (no sse)"
+
+#xsavec_test
+
+gdb_test "continue" \
+    " end xsave_no_sse_test .*" \
+    "continue to end of xsave_no_sse_test"
+
+gdb_test "break $end_xsavec_test" \
+    "Breakpoint $decimal at .* line $end_xsavec_test\." \
+    "set breakpoint at end of xsavec_test"
+
+set test "continue to end of xsavec_test"
+gdb_test_multiple "continue" $test {
+    -re " end xsavec_test .*\r\n$gdb_prompt $" {
+        pass $test
+    }
+    -re " Illegal instruction.*\r\n$gdb_prompt $" {
+        untested i386-xsavec-no-sse-reverse
+        return -1
+    }
+}
+
+gdb_test "reverse-step" "xsavec.*" "reverse-step to xsavec"
+
+gdb_test "print buf" ".* = '\\\\000' <repeats .* times>" \
+    "verify xsave buffer after reverse xsavec"

@@ -50,10 +50,19 @@ xsave_no_sse_test (void)
   asm ("xsave %0" : "=m"(buf) : "a"((1 << 1) ^ ~0L), "d"(~0L));
 } /* end xsave_no_sse_test */
 
+void xsavec_test (void) {
+  uint32_t xsave_buf_sze = get_xsave_buffer_size ();
+  char buf[xsave_buf_sze] __attribute__ ((aligned (64)));
+  memset (buf, 0, xsave_buf_sze);
+
+  asm ("xsavec %0":"=m"(buf) : "a"(~0L), "d"(~0L));
+} /* end xsavec_test */
+
 int
 main ()
 {
   xsave_test ();
   xsave_no_sse_test ();
+  xsavec_test ();
   return 0;	/* end of main */
 }

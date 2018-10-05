@@ -72,6 +72,23 @@
       (HAS_MPX (XCR0) ? X86_XSTATE_BNDCFG_SIZE : \
        (HAS_AVX (XCR0) ? X86_XSTATE_AVX_SIZE : X86_XSTATE_SSE_SIZE))))
 
+#define X86_XSAVEC_AVX_SIZE	256
+#define X86_XSAVEC_BNDREGS_SIZE	64
+#define X86_XSAVEC_BNDCFG_SIZE	64
+#define X86_XSAVEC_K_SIZE	64
+#define X86_XSAVEC_ZMM_H_SIZE	512
+#define X86_XSAVEC_ZMM_SIZE	1024
+#define X86_XSAVEC_PKRU_SIZE	8
+
+#define X86_XSAVEC_SIZE(XCR0) \
+    (((XCR0) & X86_XSTATE_AVX ? X86_XSAVEC_AVX_SIZE : 0 ) + \
+     ((XCR0) & X86_XSTATE_BNDREGS ? X86_XSAVEC_BNDREGS_SIZE : 0) + \
+     ((XCR0) & X86_XSTATE_BNDCFG ? X86_XSAVEC_BNDCFG_SIZE : 0) + \
+     ((XCR0) & X86_XSTATE_K ? X86_XSAVEC_K_SIZE : 0) + \
+     ((XCR0) & X86_XSTATE_ZMM_H ? X86_XSAVEC_ZMM_H_SIZE : 0) + \
+     ((XCR0) & X86_XSTATE_ZMM ? X86_XSAVEC_ZMM_SIZE : 0) + \
+     ((XCR0) & X86_XSTATE_PKRU ? X86_XSAVEC_PKRU_SIZE : 0))
+
 /* Initial value for fctrl register, as defined in the X86 manual, and
    confirmed in the (Linux) kernel source.  When the x87 floating point
    feature is not enabled in an inferior we use this as the value of the

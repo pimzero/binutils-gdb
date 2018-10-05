@@ -5491,6 +5491,50 @@ i386_process_record (struct gdbarch *gdbarch, struct regcache *regcache,
             return -1;
           I386_RECORD_FULL_ARCH_LIST_ADD_REG (X86_RECORD_EFLAGS_REGNUM);
           break;
+        case 4: /* xsavec */
+          {
+            if (ir.mod == 3) {
+              opcode = (opcode << 8) | ir.modrm;
+              goto no_support;
+            }
+
+            ULONGEST rfbm_eax, rfbm_edx;
+
+            regcache_raw_read_unsigned (regcache, I386_EAX_REGNUM, &rfbm_eax);
+            rfbm_eax &= (1ULL << 32) - 1;
+
+            regcache_raw_read_unsigned (regcache, I386_EDX_REGNUM, &rfbm_edx);
+            rfbm_edx &= (1ULL << 32) - 1;
+
+            uint64_t rfbm = tdep->xcr0 & (rfbm_eax | (rfbm_edx << 32));
+
+            if (rfbm & ~X86_XSTATE_ALL_MASK) {
+              printf_unfiltered (_("Process record does not support XSAVEC "
+                                   "instruction with RFBM=%" PRIx64 ".\n"),
+                                   rfbm);
+              opcode = (opcode << 8) | ir.modrm;
+              goto no_support;
+            }
+
+            uint64_t tmpu64;
+            if (i386_record_lea_modrm_addr (&ir, &tmpu64))
+              return -1;
+
+            uint64_t legacy_size = 160; /* x87 xsave size */
+            if (rfbm & X86_XSTATE_SSE) {
+              if (ir.regmap[X86_RECORD_R8_REGNUM])
+                legacy_size = 416; /* 64-bit sse xsave size */
+              else
+                legacy_size = 288; /* 32-bit sse xsave size */
+            }
+            if (record_full_arch_list_add_mem (tmpu64, legacy_size))
+              return -1;
+
+            uint64_t size = X86_XSAVEC_SIZE (rfbm);
+            if (record_full_arch_list_add_mem (tmpu64 + 512, size))
+              return -1;
+          }
+          break;
         case 6: /* rdrand */
         case 7: /* rdseed */
           if (ir.mod != 3)
